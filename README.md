@@ -1,4 +1,4 @@
-# ByChat Client
+# bychat.io Client
 
 Your local AI agents assistant with access to your workspaces, files, and local data.
 
