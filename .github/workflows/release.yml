@@ -20,6 +20,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,73 +39,20 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Build Electron app (macOS)
+      - name: Build and Publish Electron app (macOS)
         if: matrix.platform == 'mac'
         run: npm run dist -- --mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Electron app (Windows)
+      - name: Build and Publish Electron app (Windows)
         if: matrix.platform == 'win'
         run: npm run dist -- --win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Electron app (Linux)
+      - name: Build and Publish Electron app (Linux)
         if: matrix.platform == 'linux'
         run: npm run dist -- --linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload macOS artifacts
-        if: matrix.platform == 'mac'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ByChat-macOS
-          path: |
-            release/*.dmg
-            release/*.zip
-          if-no-files-found: ignore
-
-      - name: Upload Windows artifacts
-        if: matrix.platform == 'win'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ByChat-Windows
-          path: |
-            release/*.exe
-          if-no-files-found: ignore
-
-      - name: Upload Linux artifacts
-        if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ByChat-Linux
-          path: |
-            release/*.AppImage
-            release/*.deb
-          if-no-files-found: ignore
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: artifacts/**/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
