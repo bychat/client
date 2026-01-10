@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version name for the build'
+        required: false
+        default: 'dev'
 
 jobs:
   build:
@@ -23,6 +28,9 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      VERSION_NAME: ${{ github.ref_name || github.event.inputs.version || 'dev' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,20 +47,70 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Build and Publish Electron app (macOS)
+      - name: Build Electron app (macOS)
         if: matrix.platform == 'mac'
-        run: npm run dist -- --mac
+        run: npm run dist -- --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Publish Electron app (Windows)
+      - name: Rename macOS artifacts
+        if: matrix.platform == 'mac'
+        run: |
+          cd release
+          for f in *.dmg; do [ -f "$f" ] && mv "$f" "ByChat-${VERSION_NAME}-mac.dmg"; done
+          for f in *.zip; do [ -f "$f" ] && mv "$f" "ByChat-${VERSION_NAME}-mac.zip"; done
+
+      - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
-        run: npm run dist -- --win
+        run: npm run dist -- --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Publish Electron app (Linux)
+      - name: Rename Windows artifacts
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          cd release
+          Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | ForEach-Object {
+            Rename-Item $_.FullName "ByChat-$env:VERSION_NAME-win.exe"
+          }
+
+      - name: Build Electron app (Linux)
         if: matrix.platform == 'linux'
-        run: npm run dist -- --linux
+        run: npm run dist -- --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rename Linux artifacts
+        if: matrix.platform == 'linux'
+        run: |
+          cd release
+          for f in *.AppImage; do [ -f "$f" ] && mv "$f" "ByChat-${VERSION_NAME}-linux.AppImage"; done
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'mac'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ByChat-${{ env.VERSION_NAME }}-macOS
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: ignore
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ByChat-${{ env.VERSION_NAME }}-Windows
+          path: |
+            release/*.exe
+          if-no-files-found: ignore
+
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ByChat-${{ env.VERSION_NAME }}-Linux
+          path: |
+            release/*.AppImage
+          if-no-files-found: ignore
