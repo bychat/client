@@ -102,12 +102,7 @@ jobs:
         run: |
           cd release
           ls -la
-          # Rename based on architecture
-          for f in *.dmg; do 
-            if [ -f "$f" ]; then 
-              mv "$f" "bychat-macos-${{ matrix.arch }}-${VERSION_NAME}.dmg" && echo "Renamed $f"
-            fi
-          done || true
+          # Rename zip files based on architecture
           for f in *.zip; do 
             if [ -f "$f" ]; then 
               mv "$f" "bychat-macos-${{ matrix.arch }}-${VERSION_NAME}.zip" && echo "Renamed $f"
@@ -184,6 +179,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
 
