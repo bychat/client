@@ -87,12 +87,22 @@ jobs:
         if: matrix.platform == 'mac'
         run: |
           cd release
-          for f in *-arm64.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.dmg"; done
-          for f in *-x64.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-x64-${VERSION_NAME}.dmg"; done
-          for f in *-arm64-mac.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.zip"; done
-          for f in *-mac.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-x64-${VERSION_NAME}.zip"; done
-          # Fallback for universal builds
-          for f in *.dmg; do [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != *"x64"* ]] && mv "$f" "bychat-macos-universal-${VERSION_NAME}.dmg"; done
+          ls -la
+          # Rename ARM64 builds
+          for f in *-arm64.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.dmg" && echo "Renamed $f"; done || true
+          for f in *-arm64-mac.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.zip" && echo "Renamed $f"; done || true
+          # Rename x64 builds (no -x64 suffix in original name, just the base name without arm64)
+          for f in *.dmg; do 
+            if [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != "bychat-macos"* ]]; then 
+              mv "$f" "bychat-macos-x64-${VERSION_NAME}.dmg" && echo "Renamed $f to x64"
+            fi
+          done || true
+          for f in *-mac.zip; do 
+            if [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != "bychat-macos"* ]]; then 
+              mv "$f" "bychat-macos-x64-${VERSION_NAME}.zip" && echo "Renamed $f to x64"
+            fi
+          done || true
+          ls -la
           for f in *.zip; do [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != *"x64"* ]] && mv "$f" "bychat-macos-universal-${VERSION_NAME}.zip"; done
 
       - name: Build Electron app (Windows)
