@@ -5,11 +5,16 @@ on:
     tags:
       - 'v*'
     branches:
-      - '**'
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version name for the build'
+        description: 'Version name for the build (semver format, e.g., 1.0.0 or 1.0.0-beta)'
         required: false
         default: 'dev'
 
@@ -42,6 +47,10 @@ jobs:
             platform: linux
             arch: arm64
             os_name: linux
+            # Note: This Linux arm64 build runs on ubuntu-latest (x64) and relies on
+            # electron-builder's built-in cross-compilation support. If this build
+            # fails, you may need to install cross-compilation toolchains or use
+            # Docker/QEMU in the build steps.
 
     runs-on: ${{ matrix.os }}
 
@@ -60,7 +69,7 @@ jobs:
         id: sanitize_version
         run: |
           # Replace any character that is not alphanumeric, dot, or dash with dashes
-          SANITIZED_VERSION=$(echo "${{ env.VERSION_NAME }}" | tr -c '[:alnum:].-' '-' | sed 's/--*/-/g; s/^-//; s/-$//')
+          SANITIZED_VERSION=$(echo "${{ env.VERSION_NAME }}" | tr -c '[:alnum:].-' '-' | sed -E 's/-+/-/g; s/^-//; s/-$//')
           echo "SANITIZED_VERSION_NAME=$SANITIZED_VERSION" >> $GITHUB_ENV
           echo "Sanitized version: $SANITIZED_VERSION"
         shell: bash
@@ -162,33 +171,33 @@ jobs:
         if: matrix.platform == 'mac'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-macos-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}
+          name: bychat-macos-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}-${{ github.run_number }}
           path: |
             release/*.zip
-          if-no-files-found: ignore
+          if-no-files-found: error
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'win'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-windows-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}
+          name: bychat-windows-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}-${{ github.run_number }}
           path: |
             release/*.zip
-          if-no-files-found: ignore
+          if-no-files-found: error
 
       - name: Upload Linux artifacts
         if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-linux-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}
+          name: bychat-linux-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}-${{ github.run_number }}
           path: |
             release/*.zip
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.version != 'dev')
     permissions:
       contents: write
 
@@ -203,18 +212,36 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
-            echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+            if [ -z "$VERSION" ] || [ "$VERSION" = "dev" ]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+              # Check if version matches semver prerelease pattern (e.g., 1.0.0-beta, 1.0.0-rc.1)
+              if [[ "${VERSION#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+                echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+              fi
+            fi
           else
-            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            # Check if version matches semver prerelease pattern
+            if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name || github.event.inputs.version }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
           name: ByChat Release ${{ steps.get_version.outputs.version }}
           draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.version, '-') }}
+          prerelease: ${{ steps.get_version.outputs.is_prerelease == 'true' }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ github.token }}
