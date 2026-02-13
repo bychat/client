@@ -103,7 +103,6 @@ jobs:
             fi
           done || true
           ls -la
-          for f in *.zip; do [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != *"x64"* ]] && mv "$f" "bychat-macos-universal-${VERSION_NAME}.zip"; done
 
       - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
