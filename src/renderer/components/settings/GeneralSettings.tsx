@@ -3,6 +3,8 @@ import PersonIcon from '@mui/icons-material/Person';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SecurityIcon from '@mui/icons-material/Security';
 
+// Note: These settings are UI-only placeholders. 
+// To make them functional, implement state management and persistence.
 export default function GeneralSettings() {
   return (
     <Box>

@@ -21,7 +21,9 @@ export default function ChatHeader({
 }: ChatHeaderProps) {
   const getUserInitials = (email: string | null | undefined): string => {
     if (!email) return '?';
-    return email.charAt(0).toUpperCase();
+    // Extract username part before @ and take first character
+    const username = email.split('@')[0];
+    return username.charAt(0).toUpperCase();
   };
 
   return (

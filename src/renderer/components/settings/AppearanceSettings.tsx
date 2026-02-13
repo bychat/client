@@ -3,6 +3,8 @@ import PaletteIcon from '@mui/icons-material/Palette';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 
+// Note: These settings are UI-only placeholders. 
+// To make them functional, implement state management and theme switching logic.
 export default function AppearanceSettings() {
   return (
     <Box>
