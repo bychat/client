@@ -65,10 +65,6 @@
     "win": {
       "target": ["zip"]
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    },
     "linux": {
       "target": ["zip"],
       "category": "Utility"
