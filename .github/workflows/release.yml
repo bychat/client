@@ -59,8 +59,8 @@ jobs:
       - name: Sanitize version name
         id: sanitize_version
         run: |
-          # Replace forward slashes with dashes for artifact names
-          SANITIZED_VERSION=$(echo "${{ env.VERSION_NAME }}" | sed 's/\//-/g')
+          # Replace invalid characters (forward slash, backslash, colon, quotes, etc.) with dashes
+          SANITIZED_VERSION=$(echo "${{ env.VERSION_NAME }}" | tr -c '[:alnum:].-' '-' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
           echo "SANITIZED_VERSION_NAME=$SANITIZED_VERSION" >> $GITHUB_ENV
           echo "Sanitized version: $SANITIZED_VERSION"
         shell: bash
