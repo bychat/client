@@ -5,6 +5,23 @@ import Store from 'electron-store';
 // Initialize store for persistent data
 const store = new Store();
 
+// Title generation settings interface
+interface TitleGenerationSettings {
+  enabled: boolean;
+  model: string; // Model to use for title generation (empty = use chat model)
+  prompt: string; // Custom prompt for title generation
+}
+
+const DEFAULT_TITLE_PROMPT = `Generate a short, concise title (max 6 words) for this conversation based on the first message. Only respond with the title, no quotes or extra text.
+
+First message: {message}`;
+
+const DEFAULT_TITLE_SETTINGS: TitleGenerationSettings = {
+  enabled: true,
+  model: '', // Empty means use the currently selected chat model
+  prompt: DEFAULT_TITLE_PROMPT,
+};
+
 let supabase: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient {
@@ -266,5 +283,87 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
       const message = err instanceof Error ? err.message : 'Failed to delete chat';
       return { success: false, error: { message } };
     }
+  });
+
+  // Title generation settings handlers
+  ipcMain.handle('titleSettings:get', async () => {
+    try {
+      const settings = store.get('titleSettings') as TitleGenerationSettings | undefined;
+      return { settings: settings || DEFAULT_TITLE_SETTINGS, error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to get title settings';
+      return { settings: DEFAULT_TITLE_SETTINGS, error: { message } };
+    }
+  });
+
+  ipcMain.handle('titleSettings:set', async (_, newSettings: TitleGenerationSettings) => {
+    try {
+      store.set('titleSettings', newSettings);
+      return { success: true, error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save title settings';
+      return { success: false, error: { message } };
+    }
+  });
+
+  ipcMain.handle('title:generate', async (_, message: string, chatModel: string) => {
+    try {
+      // Get title generation settings
+      const settings = store.get('titleSettings') as TitleGenerationSettings | undefined;
+      const { enabled, model, prompt } = settings || DEFAULT_TITLE_SETTINGS;
+      
+      if (!enabled) {
+        return { title: null, error: { message: 'Title generation is disabled' } };
+      }
+
+      // Use title model if specified, otherwise use the current chat model
+      const titleModel = model || chatModel;
+      
+      if (!titleModel) {
+        return { title: null, error: { message: 'No model available for title generation' } };
+      }
+
+      // Use default prompt if none provided
+      const finalPrompt = prompt.trim() || DEFAULT_TITLE_PROMPT;
+      const fullPrompt = finalPrompt.replace('{message}', message);
+
+      console.log('Generating title with model:', titleModel);
+
+      // Generate title using Ollama
+      const response = await fetch(`${OLLAMA_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: titleModel,
+          messages: [{ role: 'user', content: fullPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Title generation error:', errorData);
+        return { title: null, error: { message: 'Failed to generate title with Ollama' } };
+      }
+
+      const data = await response.json() as { message: { role: string; content: string } };
+      // Clean up the title - remove quotes, trim, and limit length
+      let generatedTitle = data.message.content.trim();
+      generatedTitle = generatedTitle.replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+      generatedTitle = generatedTitle.slice(0, 50); // Limit to 50 chars
+      
+      console.log('Generated title:', generatedTitle);
+      
+      return { title: generatedTitle, error: null };
+    } catch (err: unknown) {
+      console.error('Title generation error:', err);
+      const message = err instanceof Error ? err.message : 'Failed to generate title';
+      return { title: null, error: { message } };
+    }
+  });
+
+  // Get default title prompt
+  ipcMain.handle('title:getDefaultPrompt', async () => {
+    return { prompt: DEFAULT_TITLE_PROMPT };
   });
 }

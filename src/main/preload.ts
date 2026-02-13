@@ -49,4 +49,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('chats:save', chat),
   deleteChat: (chatId: string) => 
     ipcRenderer.invoke('chats:delete', chatId),
+  
+  // Title generation settings
+  getTitleSettings: () =>
+    ipcRenderer.invoke('titleSettings:get'),
+  setTitleSettings: (settings: { enabled: boolean; model: string; prompt: string }) =>
+    ipcRenderer.invoke('titleSettings:set', settings),
+  generateTitle: (message: string, chatModel: string) =>
+    ipcRenderer.invoke('title:generate', message, chatModel),
+  getDefaultTitlePrompt: () =>
+    ipcRenderer.invoke('title:getDefaultPrompt'),
 });

@@ -38,6 +38,12 @@ interface Chat {
   updatedAt: string;
 }
 
+interface TitleGenerationSettings {
+  enabled: boolean;
+  model: string;
+  prompt: string;
+}
+
 export interface ElectronAPI {
   login: (email: string, password: string) => Promise<{ user: User | null; error: AuthError | null }>;
   signup: (email: string, password: string) => Promise<{ user: User | null; error: AuthError | null }>;
@@ -50,6 +56,12 @@ export interface ElectronAPI {
   getAllChats: () => Promise<{ chats: Chat[]; error: AuthError | null }>;
   saveChat: (chat: Chat) => Promise<{ success: boolean; error: AuthError | null }>;
   deleteChat: (chatId: string) => Promise<{ success: boolean; error: AuthError | null }>;
+  
+  // Title generation
+  getTitleSettings: () => Promise<{ settings: TitleGenerationSettings; error: AuthError | null }>;
+  setTitleSettings: (settings: TitleGenerationSettings) => Promise<{ success: boolean; error: AuthError | null }>;
+  generateTitle: (message: string, chatModel: string) => Promise<{ title: string | null; error: AuthError | null }>;
+  getDefaultTitlePrompt: () => Promise<{ prompt: string }>;
 }
 
 declare global {

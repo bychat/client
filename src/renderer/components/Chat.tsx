@@ -43,8 +43,10 @@ import TableChartIcon from '@mui/icons-material/TableChart';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import SettingsIcon from '@mui/icons-material/Settings';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../context/AuthContext';
+import TitleSettingsDialog from './TitleSettingsDialog';
 
 interface Message {
   id: string;
@@ -96,8 +98,8 @@ function formatBytes(bytes: number): string {
   return `${gb.toFixed(1)} GB`;
 }
 
-function generateChatTitle(firstMessage: string): string {
-  // Take first 30 characters of the first message as title
+function generateChatTitleFallback(firstMessage: string): string {
+  // Fallback: Take first 30 characters of the first message as title
   const title = firstMessage.slice(0, 30);
   return title.length < firstMessage.length ? `${title}...` : title;
 }
@@ -114,6 +116,7 @@ function Chat({ onSignIn }: ChatProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -137,8 +140,28 @@ function Chat({ onSignIn }: ChatProps) {
     loadChats();
   }, []);
 
+  // Generate chat title using AI with fallback
+  const generateChatTitle = useCallback(async (firstMessage: string, model: string): Promise<string> => {
+    try {
+      const { title, error } = await window.electronAPI.generateTitle(firstMessage, model);
+      if (error || !title) {
+        console.log('AI title generation failed, using fallback:', error?.message);
+        return generateChatTitleFallback(firstMessage);
+      }
+      return title;
+    } catch (err) {
+      console.error('Title generation error:', err);
+      return generateChatTitleFallback(firstMessage);
+    }
+  }, []);
+
   // Save current chat when messages change
-  const saveCurrentChat = useCallback(async (messagesToSave: Message[], chatId: string | null, model: string) => {
+  const saveCurrentChat = useCallback(async (
+    messagesToSave: Message[], 
+    chatId: string | null, 
+    model: string,
+    isNewChat: boolean = false
+  ) => {
     if (messagesToSave.length === 0) return null;
 
     const storedMessages: StoredMessage[] = messagesToSave.map((m) => ({
@@ -150,7 +173,22 @@ function Chat({ onSignIn }: ChatProps) {
 
     const now = new Date().toISOString();
     const firstUserMessage = messagesToSave.find((m) => m.role === 'user');
-    const title = firstUserMessage ? generateChatTitle(firstUserMessage.content) : 'New Chat';
+    
+    // Only generate AI title for new chats, otherwise keep existing title
+    let title = 'New Chat';
+    if (firstUserMessage) {
+      if (isNewChat) {
+        // Generate AI title for new chats
+        title = await generateChatTitle(firstUserMessage.content, model);
+      } else if (chatId) {
+        // Keep existing title for existing chats
+        const existingChat = chats.find((c) => c.id === chatId);
+        title = existingChat?.title || generateChatTitleFallback(firstUserMessage.content);
+      } else {
+        // Fallback for edge cases
+        title = generateChatTitleFallback(firstUserMessage.content);
+      }
+    }
 
     const chat: Chat = {
       id: chatId || Date.now().toString(),
@@ -180,7 +218,7 @@ function Chat({ onSignIn }: ChatProps) {
       console.error('Failed to save chat:', error);
       return null;
     }
-  }, [chats]);
+  }, [chats, generateChatTitle]);
 
   const fetchModels = async () => {
     setLoadingModels(true);
@@ -222,8 +260,11 @@ function Chat({ onSignIn }: ChatProps) {
     setInput('');
     setLoading(true);
 
-    // Save chat with user message first
-    const chatId = await saveCurrentChat(updatedMessages, currentChatId, selectedModel);
+    // Determine if this is a new chat (no currentChatId means new chat)
+    const isNewChat = !currentChatId;
+
+    // Save chat with user message first (generate AI title for new chats)
+    const chatId = await saveCurrentChat(updatedMessages, currentChatId, selectedModel, isNewChat);
     if (chatId && !currentChatId) {
       setCurrentChatId(chatId);
     }
@@ -249,8 +290,8 @@ function Chat({ onSignIn }: ChatProps) {
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
-      // Save chat with assistant response
-      await saveCurrentChat(finalMessages, chatId || currentChatId, selectedModel);
+      // Save chat with assistant response (not a new chat anymore, keep existing title)
+      await saveCurrentChat(finalMessages, chatId || currentChatId, selectedModel, false);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       const errorMsg: Message = {
@@ -261,7 +302,7 @@ function Chat({ onSignIn }: ChatProps) {
       };
       const finalMessages = [...updatedMessages, errorMsg];
       setMessages(finalMessages);
-      await saveCurrentChat(finalMessages, chatId || currentChatId, selectedModel);
+      await saveCurrentChat(finalMessages, chatId || currentChatId, selectedModel, false);
     } finally {
       setLoading(false);
     }
@@ -490,6 +531,14 @@ function Chat({ onSignIn }: ChatProps) {
 
           <IconButton onClick={fetchModels} disabled={loadingModels} size="small">
             <RefreshIcon fontSize="small" />
+          </IconButton>
+
+          <IconButton 
+            onClick={() => setSettingsOpen(true)} 
+            size="small"
+            title="Title Generation Settings"
+          >
+            <SettingsIcon fontSize="small" />
           </IconButton>
 
           {user ? (
@@ -1026,6 +1075,14 @@ function Chat({ onSignIn }: ChatProps) {
           </Box>
         </Box>
       </Box>
+
+      {/* Title Settings Dialog */}
+      <TitleSettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        models={models}
+        currentModel={selectedModel}
+      />
     </Box>
   );
 }
