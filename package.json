@@ -77,14 +77,14 @@
       ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": ["zip"]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": ["zip"],
       "category": "Utility"
     }
   }
