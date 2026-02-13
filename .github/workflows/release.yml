@@ -205,7 +205,7 @@ jobs:
           tag_name: ${{ github.ref_name || github.event.inputs.version }}
           name: ByChat Release ${{ steps.get_version.outputs.version }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, '-') }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ github.token }}
