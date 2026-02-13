@@ -56,6 +56,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Sanitize version name
+        id: sanitize_version
+        run: |
+          # Replace forward slashes with dashes for artifact names
+          SANITIZED_VERSION=$(echo "${{ env.VERSION_NAME }}" | sed 's/\//-/g')
+          echo "SANITIZED_VERSION_NAME=$SANITIZED_VERSION" >> $GITHUB_ENV
+          echo "Sanitized version: $SANITIZED_VERSION"
+        shell: bash
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -105,7 +114,7 @@ jobs:
           # Rename zip files based on architecture
           for f in *.zip; do 
             if [ -f "$f" ]; then 
-              mv "$f" "bychat-macos-${{ matrix.arch }}-${VERSION_NAME}.zip" && echo "Renamed $f"
+              mv "$f" "bychat-macos-${{ matrix.arch }}-${SANITIZED_VERSION_NAME}.zip" && echo "Renamed $f"
             fi
           done || true
           ls -la
@@ -125,8 +134,8 @@ jobs:
           # Find and rename the zip file for this architecture
           $zipFile = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
           if ($zipFile) {
-            Rename-Item $zipFile.FullName "bychat-windows-${{ matrix.arch }}-$env:VERSION_NAME.zip"
-            Write-Host "Renamed $($zipFile.Name) to bychat-windows-${{ matrix.arch }}-$env:VERSION_NAME.zip"
+            Rename-Item $zipFile.FullName "bychat-windows-${{ matrix.arch }}-$env:SANITIZED_VERSION_NAME.zip"
+            Write-Host "Renamed $($zipFile.Name) to bychat-windows-${{ matrix.arch }}-$env:SANITIZED_VERSION_NAME.zip"
           }
           Get-ChildItem
 
@@ -144,7 +153,7 @@ jobs:
           # Rename the zip file for this architecture
           for f in *.zip; do 
             if [ -f "$f" ]; then 
-              mv "$f" "bychat-linux-${{ matrix.arch }}-${VERSION_NAME}.zip" && echo "Renamed $f"
+              mv "$f" "bychat-linux-${{ matrix.arch }}-${SANITIZED_VERSION_NAME}.zip" && echo "Renamed $f"
             fi
           done || true
           ls -la
@@ -153,7 +162,7 @@ jobs:
         if: matrix.platform == 'mac'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-macos-${{ matrix.arch }}-${{ env.VERSION_NAME }}
+          name: bychat-macos-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}
           path: |
             release/*.zip
           if-no-files-found: ignore
@@ -162,7 +171,7 @@ jobs:
         if: matrix.platform == 'win'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-windows-${{ matrix.arch }}-${{ env.VERSION_NAME }}
+          name: bychat-windows-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}
           path: |
             release/*.zip
           if-no-files-found: ignore
@@ -171,7 +180,7 @@ jobs:
         if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-linux-${{ matrix.arch }}-${{ env.VERSION_NAME }}
+          name: bychat-linux-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}
           path: |
             release/*.zip
           if-no-files-found: ignore
