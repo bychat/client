@@ -7,10 +7,14 @@ on:
     branches:
       - main
       - develop
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version name for the build'
+        description: 'Version name for the build (semver format, e.g., 1.0.0 or 1.0.0-beta)'
         required: false
         default: 'dev'
 
@@ -21,13 +25,32 @@ jobs:
         include:
           - os: macos-latest
             platform: mac
+            arch: arm64
+            os_name: macos
+          - os: macos-latest
+            platform: mac
+            arch: x64
             os_name: macos
           - os: windows-latest
             platform: win
+            arch: x64
+            os_name: windows
+          - os: windows-latest
+            platform: win
+            arch: ia32
             os_name: windows
           - os: ubuntu-latest
             platform: linux
+            arch: x64
             os_name: linux
+          - os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            os_name: linux
+            # Note: This Linux arm64 build runs on ubuntu-latest (x64) and relies on
+            # electron-builder's built-in cross-compilation support. If this build
+            # fails, you may need to install cross-compilation toolchains or use
+            # Docker/QEMU in the build steps.
 
     runs-on: ${{ matrix.os }}
 
@@ -41,6 +64,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Sanitize version name
+        id: sanitize_version
+        run: |
+          # Replace any character that is not alphanumeric, dot, or dash with dashes
+          SANITIZED_VERSION=$(echo "${{ env.VERSION_NAME }}" | tr -c '[:alnum:].-' '-' | sed -E 's/-+/-/g; s/^-//; s/-$//')
+          echo "SANITIZED_VERSION_NAME=$SANITIZED_VERSION" >> $GITHUB_ENV
+          echo "Sanitized version: $SANITIZED_VERSION"
+        shell: bash
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -79,7 +111,7 @@ jobs:
 
       - name: Build Electron app (macOS)
         if: matrix.platform == 'mac'
-        run: npm run dist -- --mac --arm64 --x64
+        run: npm run dist -- --mac --${{ matrix.arch }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -88,25 +120,17 @@ jobs:
         run: |
           cd release
           ls -la
-          # Rename ARM64 builds
-          for f in *-arm64.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.dmg" && echo "Renamed $f"; done || true
-          for f in *-arm64-mac.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.zip" && echo "Renamed $f"; done || true
-          # Rename x64 builds (no -x64 suffix in original name, just the base name without arm64)
-          for f in *.dmg; do 
-            if [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != "bychat-macos"* ]]; then 
-              mv "$f" "bychat-macos-x64-${VERSION_NAME}.dmg" && echo "Renamed $f to x64"
-            fi
-          done || true
-          for f in *-mac.zip; do 
-            if [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != "bychat-macos"* ]]; then 
-              mv "$f" "bychat-macos-x64-${VERSION_NAME}.zip" && echo "Renamed $f to x64"
+          # Rename zip files based on architecture
+          for f in *.zip; do 
+            if [ -f "$f" ]; then 
+              mv "$f" "bychat-macos-${{ matrix.arch }}-${SANITIZED_VERSION_NAME}.zip" && echo "Renamed $f"
             fi
           done || true
           ls -la
 
       - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
-        run: npm run dist -- --win --x64 --ia32
+        run: npm run dist -- --win --${{ matrix.arch }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -116,23 +140,17 @@ jobs:
         run: |
           cd release
           Get-ChildItem
-          # Rename setup exe (NSIS installer) - there should only be one
-          $setupExe = Get-ChildItem -Filter "*Setup*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | Select-Object -First 1
-          if ($setupExe) {
-            Rename-Item $setupExe.FullName "bychat-windows-setup-$env:VERSION_NAME.exe"
-            Write-Host "Renamed $($setupExe.Name) to bychat-windows-setup-$env:VERSION_NAME.exe"
-          }
-          # Rename portable exe if it exists
-          $portableExe = Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -notmatch "blockmap" -and $_.Name -notmatch "Setup" -and $_.Name -notmatch "bychat-windows" } | Select-Object -First 1
-          if ($portableExe) {
-            Rename-Item $portableExe.FullName "bychat-windows-portable-$env:VERSION_NAME.exe"
-            Write-Host "Renamed $($portableExe.Name) to bychat-windows-portable-$env:VERSION_NAME.exe"
+          # Find and rename the zip file for this architecture
+          $zipFile = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
+          if ($zipFile) {
+            Rename-Item $zipFile.FullName "bychat-windows-${{ matrix.arch }}-$env:SANITIZED_VERSION_NAME.zip"
+            Write-Host "Renamed $($zipFile.Name) to bychat-windows-${{ matrix.arch }}-$env:SANITIZED_VERSION_NAME.zip"
           }
           Get-ChildItem
 
       - name: Build Electron app (Linux)
         if: matrix.platform == 'linux'
-        run: npm run dist -- --linux
+        run: npm run dist -- --linux --${{ matrix.arch }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -140,39 +158,46 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           cd release
-          for f in *.AppImage; do [ -f "$f" ] && mv "$f" "bychat-linux-${VERSION_NAME}.AppImage"; done
+          ls -la
+          # Rename the zip file for this architecture
+          for f in *.zip; do 
+            if [ -f "$f" ]; then 
+              mv "$f" "bychat-linux-${{ matrix.arch }}-${SANITIZED_VERSION_NAME}.zip" && echo "Renamed $f"
+            fi
+          done || true
+          ls -la
 
       - name: Upload macOS artifacts
         if: matrix.platform == 'mac'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-macos-${{ env.VERSION_NAME }}
+          name: bychat-macos-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}-${{ github.run_number }}
           path: |
-            release/*.dmg
             release/*.zip
-          if-no-files-found: ignore
+          if-no-files-found: error
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'win'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-windows-${{ env.VERSION_NAME }}
+          name: bychat-windows-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}-${{ github.run_number }}
           path: |
-            release/*.exe
-          if-no-files-found: ignore
+            release/*.zip
+          if-no-files-found: error
 
       - name: Upload Linux artifacts
         if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
-          name: bychat-linux-${{ env.VERSION_NAME }}
+          name: bychat-linux-${{ matrix.arch }}-${{ env.SANITIZED_VERSION_NAME }}-${{ github.run_number }}
           path: |
-            release/*.AppImage
-          if-no-files-found: ignore
+            release/*.zip
+          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.version != 'dev')
     permissions:
       contents: write
 
@@ -182,13 +207,41 @@ jobs:
         with:
           path: artifacts
 
+      - name: Get version without v prefix
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            if [ -z "$VERSION" ] || [ "$VERSION" = "dev" ]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+              # Check if version matches semver prerelease pattern (e.g., 1.0.0-beta, 1.0.0-rc.1)
+              if [[ "${VERSION#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+                echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            # Check if version matches semver prerelease pattern
+            if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name || github.event.inputs.version || 'dev' }}
-          name: bychat-${{ github.ref_name || github.event.inputs.version || 'dev' }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
+          name: ByChat Release ${{ steps.get_version.outputs.version }}
           draft: false
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          prerelease: ${{ steps.get_version.outputs.is_prerelease == 'true' }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ github.token }}

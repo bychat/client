@@ -58,33 +58,15 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"],
+      "target": ["zip"],
       "hardenedRuntime": true,
       "gatekeeperAssess": false
     },
-    "dmg": {
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
     "win": {
-      "target": ["nsis", "portable"]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "target": ["zip"]
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": ["zip"],
       "category": "Utility"
     }
   }
