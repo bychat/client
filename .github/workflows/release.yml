@@ -115,16 +115,20 @@ jobs:
         shell: pwsh
         run: |
           cd release
-          Get-ChildItem -Filter "*x64*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | ForEach-Object {
-            Rename-Item $_.FullName "bychat-windows-x64-$env:VERSION_NAME.exe"
+          Get-ChildItem
+          # Rename setup exe (NSIS installer) - there should only be one
+          $setupExe = Get-ChildItem -Filter "*Setup*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | Select-Object -First 1
+          if ($setupExe) {
+            Rename-Item $setupExe.FullName "bychat-windows-setup-$env:VERSION_NAME.exe"
+            Write-Host "Renamed $($setupExe.Name) to bychat-windows-setup-$env:VERSION_NAME.exe"
           }
-          Get-ChildItem -Filter "*ia32*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | ForEach-Object {
-            Rename-Item $_.FullName "bychat-windows-x86-$env:VERSION_NAME.exe"
+          # Rename portable exe if it exists
+          $portableExe = Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -notmatch "blockmap" -and $_.Name -notmatch "Setup" -and $_.Name -notmatch "bychat-windows" } | Select-Object -First 1
+          if ($portableExe) {
+            Rename-Item $portableExe.FullName "bychat-windows-portable-$env:VERSION_NAME.exe"
+            Write-Host "Renamed $($portableExe.Name) to bychat-windows-portable-$env:VERSION_NAME.exe"
           }
-          # Fallback for non-arch-specific builds
-          Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -notmatch "blockmap" -and $_.Name -notmatch "x64" -and $_.Name -notmatch "x86" } | ForEach-Object {
-            Rename-Item $_.FullName "bychat-windows-$env:VERSION_NAME.exe"
-          }
+          Get-ChildItem
 
       - name: Build Electron app (Linux)
         if: matrix.platform == 'linux'
