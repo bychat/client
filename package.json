@@ -59,7 +59,6 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": ["dmg", "zip"],
-      "icon": "build/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false
     },
@@ -78,20 +77,15 @@
       ]
     },
     "win": {
-      "target": ["nsis", "portable"],
-      "icon": "build/icon.ico"
+      "target": ["nsis", "portable"]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico"
+      "allowToChangeInstallationDirectory": true
     },
     "linux": {
       "target": ["AppImage", "deb"],
-      "category": "Utility",
-      "icon": "build/icons"
+      "category": "Utility"
     }
   }
 }
