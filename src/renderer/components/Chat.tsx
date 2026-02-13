@@ -19,6 +19,7 @@ import {
   ListItemText,
   ListItemIcon,
   Drawer,
+  Divider,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -30,6 +31,18 @@ import AddIcon from '@mui/icons-material/Add';
 import ChatIcon from '@mui/icons-material/Chat';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MenuIcon from '@mui/icons-material/Menu';
+import GraphicEqIcon from '@mui/icons-material/GraphicEq';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import DescriptionIcon from '@mui/icons-material/Description';
+import StyleIcon from '@mui/icons-material/Style';
+import QuizIcon from '@mui/icons-material/Quiz';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import SlideshowIcon from '@mui/icons-material/Slideshow';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import EditIcon from '@mui/icons-material/Edit';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../context/AuthContext';
 
@@ -66,7 +79,17 @@ interface ChatProps {
   onSignIn?: () => void;
 }
 
+interface StudioAction {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  bgColor: string;
+  beta?: boolean;
+}
+
 const DRAWER_WIDTH = 280;
+const STUDIO_WIDTH = 320;
 
 function formatBytes(bytes: number): string {
   const gb = bytes / (1024 * 1024 * 1024);
@@ -281,6 +304,24 @@ function Chat({ onSignIn }: ChatProps) {
       console.error('Failed to delete chat:', error);
     }
   };
+
+  // Studio action handlers - dummy for now
+  const handleStudioAction = (actionId: string, actionLabel: string) => {
+    console.log(`Studio Action: ${actionId} - ${actionLabel}`);
+  };
+
+  // Studio actions configuration
+  const studioActions: StudioAction[] = [
+    { id: 'audio', label: 'Audio Overview', icon: <GraphicEqIcon />, color: '#1a73e8', bgColor: '#e8f0fe' },
+    { id: 'video', label: 'Video Overview', icon: <VideocamIcon />, color: '#ea8600', bgColor: '#fef7e0' },
+    { id: 'mindmap', label: 'Mind Map', icon: <AccountTreeIcon />, color: '#1a73e8', bgColor: '#e8f0fe' },
+    { id: 'reports', label: 'Reports', icon: <DescriptionIcon />, color: '#5f6368', bgColor: '#f1f3f4' },
+    { id: 'flashcards', label: 'Flashcards', icon: <StyleIcon />, color: '#e37400', bgColor: '#fef7e0' },
+    { id: 'quiz', label: 'Quiz', icon: <QuizIcon />, color: '#1e8e3e', bgColor: '#e6f4ea' },
+    { id: 'infographic', label: 'Infographic', icon: <BarChartIcon />, color: '#9334e6', bgColor: '#f3e8fd', beta: true },
+    { id: 'slidedeck', label: 'Slide Deck', icon: <SlideshowIcon />, color: '#ea8600', bgColor: '#fef7e0', beta: true },
+    { id: 'datatable', label: 'Data Table', icon: <TableChartIcon />, color: '#1a73e8', bgColor: '#e8f0fe' },
+  ];
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -724,6 +765,263 @@ function Chat({ onSignIn }: ChatProps) {
               }}
             >
               <SendIcon />
+            </IconButton>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Studio Panel */}
+      <Box
+        sx={{
+          width: STUDIO_WIDTH,
+          borderLeft: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Studio Header */}
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="subtitle1" fontWeight={600}>
+            Studio
+          </Typography>
+          <IconButton size="small">
+            <MenuIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        {/* Studio Actions Grid */}
+        <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 1.5,
+            }}
+          >
+            {studioActions.map((action) => (
+              <Paper
+                key={action.id}
+                onClick={() => handleStudioAction(action.id, action.label)}
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: action.bgColor,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  border: '1px solid transparent',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: action.color,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <Box sx={{ color: action.color, mb: 1 }}>
+                    {action.icon}
+                  </Box>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => { e.stopPropagation(); console.log(`Edit ${action.label}`); }}
+                    sx={{ p: 0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                  >
+                    <EditIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+                <Typography variant="body2" fontWeight={500} sx={{ color: '#202124' }}>
+                  {action.label}
+                </Typography>
+                {action.beta && (
+                  <Chip
+                    label="BETA"
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      height: 18,
+                      fontSize: '0.6rem',
+                      bgcolor: 'rgba(0,0,0,0.08)',
+                      color: '#5f6368',
+                    }}
+                  />
+                )}
+              </Paper>
+            ))}
+          </Box>
+
+          {/* Deep Dive Section */}
+          <Divider sx={{ my: 2 }} />
+          
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              bgcolor: '#f8f9fa',
+              border: '1px solid #e8eaed',
+              mb: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <GraphicEqIcon sx={{ color: '#1a73e8', fontSize: 20 }} />
+              <Typography variant="body2" fontWeight={600}>
+                The Math...
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Deep Dive · 3 sources · 17m ago
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => console.log('Interactive mode clicked')}
+              sx={{
+                borderRadius: 4,
+                textTransform: 'none',
+                borderColor: '#1a73e8',
+                color: '#1a73e8',
+              }}
+            >
+              Interactive
+            </Button>
+          </Paper>
+
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              bgcolor: '#f8f9fa',
+              border: '1px solid #e8eaed',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SlideshowIcon sx={{ color: '#5f6368', fontSize: 20 }} />
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>
+                    Measuring Data Uncertainty
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    3 sources
+                  </Typography>
+                </Box>
+              </Box>
+              <Button
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => console.log('Add note clicked')}
+                sx={{
+                  borderRadius: 4,
+                  textTransform: 'none',
+                  bgcolor: '#202124',
+                  color: 'white',
+                  '&:hover': { bgcolor: '#3c4043' },
+                }}
+              >
+                Add note
+              </Button>
+            </Box>
+          </Paper>
+
+          {/* Audio Player Section */}
+          <Box sx={{ mt: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: '#f8f9fa',
+                border: '1px solid #e8eaed',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2" fontWeight={500}>
+                  The Math Behind P...
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <IconButton size="small" onClick={() => console.log('Thumbs up')}>
+                    <span style={{ fontSize: 14 }}>👍</span>
+                  </IconButton>
+                  <IconButton size="small" onClick={() => console.log('Thumbs down')}>
+                    <span style={{ fontSize: 14 }}>👎</span>
+                  </IconButton>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton 
+                  size="small"
+                  onClick={() => console.log('Play audio')}
+                  sx={{ bgcolor: '#1a73e8', color: 'white', '&:hover': { bgcolor: '#1557b0' } }}
+                >
+                  <ArrowForwardIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <Box sx={{ flexGrow: 1, height: 4, bgcolor: '#e8eaed', borderRadius: 2, position: 'relative' }}>
+                  <Box sx={{ width: '90%', height: '100%', bgcolor: '#1a73e8', borderRadius: 2 }} />
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  13:54 / 15:05
+                </Typography>
+              </Box>
+            </Paper>
+          </Box>
+        </Box>
+
+        {/* Studio Input */}
+        <Box
+          sx={{
+            p: 2,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              bgcolor: '#f1f3f4',
+              borderRadius: 3,
+              p: 1,
+              border: '1px solid #e8eaed',
+            }}
+          >
+            <TextField
+              fullWidth
+              placeholder="Start typing..."
+              variant="standard"
+              size="small"
+              onChange={(e) => console.log('Studio input:', e.target.value)}
+              InputProps={{
+                disableUnderline: true,
+                sx: { px: 1, fontSize: '0.875rem' },
+              }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+              3 sources
+            </Typography>
+            <IconButton 
+              size="small" 
+              onClick={() => console.log('Submit studio input')}
+              sx={{ bgcolor: '#1a73e8', color: 'white', '&:hover': { bgcolor: '#1557b0' } }}
+            >
+              <ArrowForwardIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Box>
         </Box>

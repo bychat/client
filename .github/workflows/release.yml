@@ -48,6 +48,16 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Update package.json version
+        run: |
+          VERSION="${VERSION_NAME#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            npm version "$VERSION" --no-git-tag-version --allow-same-version
+            echo "Updated version to $VERSION"
+          else
+            echo "Skipping version update for non-semver: $VERSION_NAME"
+          fi
+
       - name: Install dependencies
         run: npm ci
 
@@ -56,7 +66,7 @@ jobs:
 
       - name: Build Electron app (macOS)
         if: matrix.platform == 'mac'
-        run: npm run dist -- --mac
+        run: npm run dist -- --mac --arm64 --x64
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -64,12 +74,17 @@ jobs:
         if: matrix.platform == 'mac'
         run: |
           cd release
-          for f in *.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-${VERSION_NAME}.dmg"; done
-          for f in *.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-${VERSION_NAME}.zip"; done
+          for f in *-arm64.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.dmg"; done
+          for f in *-x64.dmg; do [ -f "$f" ] && mv "$f" "bychat-macos-x64-${VERSION_NAME}.dmg"; done
+          for f in *-arm64-mac.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-arm64-${VERSION_NAME}.zip"; done
+          for f in *-mac.zip; do [ -f "$f" ] && mv "$f" "bychat-macos-x64-${VERSION_NAME}.zip"; done
+          # Fallback for universal builds
+          for f in *.dmg; do [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != *"x64"* ]] && mv "$f" "bychat-macos-universal-${VERSION_NAME}.dmg"; done
+          for f in *.zip; do [ -f "$f" ] && [[ "$f" != *"arm64"* ]] && [[ "$f" != *"x64"* ]] && mv "$f" "bychat-macos-universal-${VERSION_NAME}.zip"; done
 
       - name: Build Electron app (Windows)
         if: matrix.platform == 'win'
-        run: npm run dist -- --win
+        run: npm run dist -- --win --x64 --ia32
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -78,7 +93,14 @@ jobs:
         shell: pwsh
         run: |
           cd release
-          Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | ForEach-Object {
+          Get-ChildItem -Filter "*x64*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | ForEach-Object {
+            Rename-Item $_.FullName "bychat-windows-x64-$env:VERSION_NAME.exe"
+          }
+          Get-ChildItem -Filter "*ia32*.exe" | Where-Object { $_.Name -notmatch "blockmap" } | ForEach-Object {
+            Rename-Item $_.FullName "bychat-windows-x86-$env:VERSION_NAME.exe"
+          }
+          # Fallback for non-arch-specific builds
+          Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -notmatch "blockmap" -and $_.Name -notmatch "x64" -and $_.Name -notmatch "x86" } | ForEach-Object {
             Rename-Item $_.FullName "bychat-windows-$env:VERSION_NAME.exe"
           }
 
