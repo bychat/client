@@ -2,7 +2,10 @@
   "name": "bychat-client",
   "version": "1.0.0",
   "description": "Electron chat client for ByChat",
-  "author": "WaleedAbu-Nafiseh",
+  "author": {
+    "name": "WaleedAbu-Nafiseh",
+    "email": "waleed@bychat.io"
+  },
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
